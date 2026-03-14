@@ -256,11 +256,11 @@ const HistoryPage = () => {
     );
   }
 
-  const filteredHistory = history.filter(scan => {
+  const filteredHistory = Array.isArray(history) ? history.filter(scan => {
     if (filterMode === 'all') return true;
     if (filterMode === 'waste') return scan.interaction_type === 'waste';
     return scan.interaction_type !== 'waste';
-  });
+  }) : [];
 
   return (
     <div className="max-w-4xl mx-auto pb-12">

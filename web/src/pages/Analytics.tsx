@@ -110,8 +110,8 @@ const Analytics = () => {
     });
 
   // TASK 3: Filter History computation
-  const filteredHistory = selectedCategory
-    ? history.filter(s => s.predicted_class.toLowerCase() === selectedCategory.toLowerCase() && s.interaction_type === 'waste')
+  const filteredHistory = (selectedCategory && Array.isArray(history))
+    ? history.filter(s => s.predicted_class && s.predicted_class.toLowerCase() === selectedCategory.toLowerCase() && s.interaction_type === 'waste')
     : [];
 
   const getRecyclingTip = (material: string) => {
