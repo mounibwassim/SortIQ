@@ -1,6 +1,6 @@
 import pytest  # pyre-ignore
 from fastapi.testclient import TestClient  # pyre-ignore
-from backend.main import app  # pyre-ignore
+from main import app  # pyre-ignore
 
 client = TestClient(app)
 
