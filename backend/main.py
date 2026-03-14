@@ -47,7 +47,13 @@ else:
     # Default: allow all origins so any Vite dev port (5173, 5174, etc.) works
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://sortiq-web.vercel.app",
+            "https://*.vercel.app",
+            "*"
+        ],
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
