@@ -1,4 +1,5 @@
 import pytest  # pyre-ignore
+# Verified Web-Only Import Sync
 from fastapi.testclient import TestClient  # pyre-ignore
 from main import app  # pyre-ignore
 
