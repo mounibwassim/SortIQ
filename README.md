@@ -1,4 +1,5 @@
-# ♻️ SortIQ - AI-Powered Universal Waste Sorting Platform
+# ♻️ SortIQ - AI-Powered Universal Waste Sorting Platform (V1.1.2)
+<!-- Heartbeat push to verify GitHub sync -->
 
 **SortIQ** is a high-precision, multi-platform waste classification system that combines real-time computer vision with a rich analytics dashboard. It empowers users to sort waste accurately using AI "Robots" that specialize in different materials.
 
