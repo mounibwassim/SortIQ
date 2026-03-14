@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v3
 
@@ -23,28 +24,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Generate mock model for testing
+    - name: Generate mock model
       working-directory: ./backend
       run: |
         python create_mock_model.py
 
-    - name: Verify imports work
+    - name: Verify app imports
       working-directory: ./backend
       run: |
-        python -c "
-        from fastapi import FastAPI
-        from database import Base, engine
-        Base.metadata.create_all(bind=engine)
-        print('Database OK')
-        from schemas import PredictUploadResponse
-        print('Schemas OK')
-        print('All checks passed')
-        "
+        python -c "from fastapi import FastAPI; print('FastAPI OK')"
+        python -c "from database import Base, engine; Base.metadata.create_all(bind=engine); print('Database OK')"
+        python -c "from schemas import PredictUploadResponse; print('Schemas OK')"
+        echo "All imports verified"
 
     - name: Run tests
       working-directory: ./backend
-      run: |
-        pytest tests/ -v --tb=short || true
       continue-on-error: true
-
-# Last verified sync: 2026-03-15 06:22 AM
+      run: |
+        pytest tests/ -v --tb=short
