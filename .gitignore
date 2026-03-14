@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Environment & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+sortiq.db
+sortiq.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+out/
+.expo/
+*.apk
+*.pt
+*.h5
+# Small model files might be okay, but user provided yolov8n.pt and yolov8s.pt are large.
+# I'll exclude large weights but keep the model folder if it has essential config.
+model/*.h5
+model/*.pt
+
+# Temporary files
+/tmp/
+url.txt
+build_list.json
