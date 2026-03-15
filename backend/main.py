@@ -32,32 +32,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Setup — allow all origins for local dev, or specific ones in production
-cors_env = os.getenv("CORS_ORIGINS", "")
-if cors_env:
-    origins = [o.strip() for o in cors_env.split(",")]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # Default: allow all origins so any Vite dev port (5173, 5174, etc.) works
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "https://sortiq-web.vercel.app",
-            "https://*.vercel.app",
-            "*"
-        ],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 app.include_router(predict.router, prefix="/predict", tags=["Prediction"])
