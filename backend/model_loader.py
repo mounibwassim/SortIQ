@@ -129,50 +129,100 @@ class SortIQModel:
         y = self.yolo_model
         if m is None or y is None:
             return []
-            
         img_rgb = np.array(img_pil)
         frame_h, frame_w = img_rgb.shape[:2]
-        
-        results = y.predict(img_pil, conf=0.25, verbose=False)
+
+        def run_mobilenet(crop_rgb, box):
+            try:
+                crop_resized = cv2.resize(crop_rgb, (224, 224))
+                crop_batch = np.expand_dims(crop_resized.astype(np.float32) / 255.0, axis=0)
+                preds = m.predict(crop_batch, verbose=0)
+                cls_idx = int(np.argmax(preds[0]))
+                conf = float(preds[0][cls_idx])
+                cls_label = self.classes.get(cls_idx, "Unknown")
+                if conf < self.threshold:
+                    return None
+                mapped = self.bin_mapping.get(cls_label, {"bin": "Recycling", "colorHex": "#22c55e"})
+                final_color = color_overrides.get(cls_label, mapped["colorHex"]) if color_overrides else mapped["colorHex"]
+                x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                cx = (x1 + x2) // 2
+                cy = (y1 + y2) // 2
+                h_pos = "Left" if cx < frame_w/3 else ("Right" if cx > 2*frame_w/3 else "Center")
+                v_pos = "Top" if cy < frame_h/3 else ("Bottom" if cy > 2*frame_h/3 else "Middle")
+                return {
+                    "is_waste": True,
+                    "label": cls_label,
+                    "raw_label": cls_label.lower(),
+                    "confidence": conf,
+                    "bin_color": mapped["bin"],
+                    "color_hex": final_color,
+                    "box_color": mapped["bin"],
+                    "box_color_hex": final_color,
+                    "box": [x1, y1, x2, y2],
+                    "location": f"{v_pos}-{h_pos}",
+                    "message": self._waste_message(cls_label),
+                    "tip": self._waste_tip(cls_label),
+                    "interaction_type": "waste",
+                }
+            except Exception as e:
+                logger.error(f"MobileNetV2 error: {e}")
+                return None
+
         final_results = []
-        
+        results = y.predict(img_pil, conf=0.20, verbose=False)
+
         for res in results:
+            if len(res.boxes) == 0:
+                continue
             boxes = res.boxes.xyxy.cpu().numpy()
-            confs = res.boxes.conf.cpu().numpy()
             classes = res.boxes.cls.cpu().numpy()
-            
             for i in range(len(boxes)):
                 box = boxes[i].astype(int)
                 yolo_label = y.names[int(classes[i])]
-                
-                if yolo_label in HARD_BLOCK: continue
-                
+                if yolo_label in HARD_BLOCK:
+                    continue
                 x1, y1, x2, y2 = box
                 crop = img_rgb[max(0,y1):min(frame_h,y2), max(0,x1):min(frame_w,x2)]
-                if crop.size == 0 or is_face_or_skin(crop) or is_background(box, frame_w, frame_h, crop):
+                if crop.size == 0:
                     continue
-                
-                crop_resized = cv2.resize(crop, (224, 224))
-                crop_batch = np.expand_dims(crop_resized.astype(np.float32) / 255.0, axis=0)
-                
-                preds = m.predict(crop_batch, verbose=0)
-                cls_idx = int(np.argmax(preds[0]))
-                cls_label = self.classes.get(cls_idx, "Unknown")
-                
-                if preds[0][cls_idx] < self.threshold: continue
-                
-                mapped = self.bin_mapping.get(cls_label, {"bin": "Unknown", "colorHex": "#94a3b8"})
-                final_color = color_overrides.get(cls_label, mapped["colorHex"]) if color_overrides else mapped["colorHex"]
+                if is_face_or_skin(crop):
+                    continue
+                if is_background(box, frame_w, frame_h, crop):
+                    continue
+                det = run_mobilenet(crop, box)
+                if det:
+                    final_results.append(det)
 
-                final_results.append({
-                    "label": cls_label,
-                    "confidence": float(preds[0][cls_idx]),
-                    "bin": mapped["bin"],
-                    "colorHex": final_color,
-                    "box": boxes[i].tolist(),
-                    "yolo_label": yolo_label
-                })
+        # Fallback: YOLO found nothing useful — run MobileNetV2 on full image
+        if not final_results:
+            logger.info("[FALLBACK] No YOLO detections — running MobileNetV2 on full image")
+            full_crop = img_rgb
+            full_box = [0, 0, frame_w, frame_h]
+            if not is_face_or_skin(full_crop):
+                det = run_mobilenet(full_crop, full_box)
+                if det:
+                    det["box"] = [10, 10, frame_w-10, frame_h-10]
+                    final_results.append(det)
+
         return final_results
+
+    def _waste_message(self, cls: str) -> str:
+        msgs = {
+            "Plastic": "♻️ Plastic detected! Place in the plastic recycling bin. Remember to rinse and remove caps!",
+            "Glass":   "♻️ Glass detected! Place in the glass recycling bin. Handle with care!",
+            "Metal":   "♻️ Metal detected! Place in the metal recycling bin. Great job recycling!",
+            "Paper":   "♻️ Paper detected! Place in the paper recycling bin. Keep it dry!",
+        }
+        return msgs.get(cls, f"♻️ {cls} detected! Place in the recycling bin.")
+
+    def _waste_tip(self, cls: str) -> str:
+        tips = {
+            "Plastic": "Rinse before placing. Remove caps and labels.",
+            "Glass":   "Glass is 100% recyclable forever!",
+            "Metal":   "Aluminum cans can be recycled infinitely!",
+            "Paper":   "Keep dry — wet paper cannot be recycled!",
+        }
+        return tips.get(cls, "Place in the correct recycling bin.")
 
 def get_model():
     if not builtins._sortiq_model_instance:
