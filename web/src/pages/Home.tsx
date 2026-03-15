@@ -121,6 +121,8 @@ const Home = () => {
         }
       );
       const data = response.data;
+      setConnected(true);
+      setError(null);
 
       if (data.scene_state === "skipped") {
         isRequestingRef.current = false;
