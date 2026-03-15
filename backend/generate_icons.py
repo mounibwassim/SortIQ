@@ -1,5 +1,5 @@
 import os
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw  # pyre-ignore
 
 def create_icon(size, output_path):
     # Create transparent background

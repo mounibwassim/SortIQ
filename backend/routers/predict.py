@@ -209,7 +209,7 @@ async def predict_upload(
         saved_id = None
         if best_det:
             logger.info(f"[UPLOAD] Saving scan: {best_det.get('label')} {best_det.get('confidence')}")
-            saved_id = robot_recorder(db, best_det, contents)
+            saved_id = robot_recorder(db, best_det, bytes(contents))
             logger.info(f"[UPLOAD] Saved with id: {saved_id}")
             
         return RealtimePredictResponse(

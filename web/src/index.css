@@ -1,3 +1,6 @@
+/* The following @tailwind rules may show warnings in some IDEs. 
+   These are standard for Tailwind CSS and can be ignored or 
+   silenced by installing the Tailwind CSS IntelliSense extension. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,8 +1,8 @@
 
 import base64
-import requests
-import cv2
-import numpy as np
+import requests  # pyre-ignore
+import cv2  # pyre-ignore
+import numpy as np  # pyre-ignore
 import time
 
 def test_case(name, image_path=None, dummy_type='face'):

@@ -8,7 +8,7 @@ import tensorflow as tf  # pyre-ignore
 from tensorflow.keras.layers import BatchNormalization as KerasBatchNormalization  # pyre-ignore
 from ultralytics import YOLO  # pyre-ignore
 import cv2  # pyre-ignore
-from PIL import Image
+from PIL import Image  # pyre-ignore
 from logger import logger  # pyre-ignore
 from typing import List, Dict, Any, Optional
 
@@ -256,13 +256,12 @@ def find_foreground_object(detections, frame_w, frame_h):
     foreground = []
 
     for det in detections:
-        box = det.get("box")
-        crop_rgb = det.get("crop_rgb")
-        label = det.get("label", "unknown")
-        
-        if box is None or crop_rgb is None:
-            logger.error(f"[FOCUS] MISSING DATA in detection: {det.keys()} | label: {label}")
+        if "box" not in det or "crop_rgb" not in det or "label" not in det:
+            logger.warning(f"[FOCUS] Skipping invalid detection: missing keys {set(['box','crop_rgb','label']) - set(det.keys())}")
             continue
+        box = det["box"]
+        crop_rgb = det["crop_rgb"]
+        label = det["label"]
 
         x1, y1, x2, y2 = box
 
@@ -848,8 +847,7 @@ def run_material_robots(crop_rgb, yolo_hint=""):
     logger.info(f"[MATERIAL_ROBOTS] scores={scores}")
     
     # Winner by score
-    # pyre-ignore[6]
-    robot_winner = max(scores, key=scores.get)
+    robot_winner = max(scores, key=lambda k: scores[k])
     robot_score  = scores[robot_winner]
     
     # Must win by clear margin (at least 3 points ahead)
@@ -901,27 +899,25 @@ class SortIQModel:
         classes_path = os.path.join(os.path.dirname(model_path), "classes.json")
         
         os.environ['TF_USE_LEGACY_KERAS'] = '1'
+        logger.info(f"Loading MobileNetV2 with tf_keras from {model_path}...")
         try:
-            import tf_keras
-            logger.info(f"Loading MobileNetV2 with tf_keras from {model_path}...")
+            import tf_keras  # pyre-ignore
             self.model = tf_keras.models.load_model(
                 model_path, 
                 compile=False,
                 custom_objects={'BatchNormalization': BatchNormalization}
             )
-            logger.info("Model loaded with tf_keras successfully")
-        except Exception as e1:
-            logger.warning(f"tf_keras failed: {e1}, trying tf.keras...")
-            try:
-                self.model = tf.keras.models.load_model(
-                    model_path,
-                    compile=False,
-                    custom_objects={'BatchNormalization': BatchNormalization}
-                )
-                logger.info("Model loaded with tf.keras successfully")
-            except Exception as e2:
-                logger.error(f"Both loaders failed: {e2}")
-                self.model = None
+            logger.info("Model loaded successfully")
+        except Exception as e:
+            logger.error(f"Model loading failed: {e}")
+            raise RuntimeError(f"Failed to load model from {model_path}: {e}")
+        
+        # Validate with warm-up
+        logger.info("Validating model with warm-up...")
+        dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+        if self.model is not None:
+            _ = self.model.predict(dummy_input, verbose=0)
+        logger.info("Model warm-up successful.")
             
         # Load class mapping
         if self.model is not None:
@@ -939,6 +935,7 @@ class SortIQModel:
                     logger.info("Class mapping loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to parse classes.json: {e}")
+                    raise RuntimeError(f"Classes mapping required at {classes_path}")
             else:
                 logger.warning(f"Class mapping not found at {classes_path}. Using fallback.")
                 self.classes = {
@@ -1348,14 +1345,13 @@ class SortIQModel:
                     logger.info("[FOCUS] All detections were background — trying full image")
                 else:
                     for raw in foreground:
-                        label = raw.get("label", "unknown")
-                        box = raw.get("box")
-                        yolo_conf = raw.get("conf", 0.0)
-                        crop_rgb = raw.get("crop_rgb")
-
-                        if box is None or crop_rgb is None:
-                            logger.error(f"[ORCHESTRATOR] Foreground object missing data: {raw.keys()}")
+                        if "label" not in raw or "box" not in raw or "conf" not in raw or "crop_rgb" not in raw:
+                            logger.warning(f"[ORCHESTRATOR] Skipping invalid foreground: missing keys {set(['label','box','conf','crop_rgb']) - set(raw.keys())}")
                             continue
+                        label = raw["label"]
+                        box = raw["box"]
+                        yolo_conf = raw["conf"]
+                        crop_rgb = raw["crop_rgb"]
 
                         x1, y1, x2, y2 = box
                         
@@ -1516,11 +1512,15 @@ class SortIQModel:
             
             return detections
 
+        except (ValueError, RuntimeError, cv2.error, tf.errors.OpError) as e:
+            logger.error(f"predict_scene failed ({type(e).__name__}): {e}")
+            raise RuntimeError(f"Prediction error: {e}") from e
         except Exception as e:
             import traceback
-            logger.error(f"CRASH in predict_scene: {e}")
+            logger.error(f"Unexpected error in predict_scene: {e}")
             logger.error(traceback.format_exc())
-            return []
+            raise RuntimeError("Unexpected prediction failure") from e
+
 
 # Singleton instance access
 model_instance = SortIQModel()
