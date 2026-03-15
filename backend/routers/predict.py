@@ -14,7 +14,7 @@ from PIL import Image  # pyre-ignore
 
 from database import get_db, WasteScan  # pyre-ignore
 from schemas import RealtimePredictRequest, RealtimePredictResponse  # pyre-ignore
-from model_loader import get_model, SortIQModel, THRESHOLDS  # pyre-ignore
+from model_loader import get_model, SortIQModel, THRESHOLDS, ensure_models_loaded  # pyre-ignore
 from logger import logger  # pyre-ignore
 from preprocessing import generate_thumbnail  # pyre-ignore
 
@@ -122,7 +122,6 @@ async def predict_realtime(
     """
     global _last_frame_mean, _processing
     
-    from model_loader import ensure_models_loaded
     ensure_models_loaded()
     
     if _processing:
@@ -188,7 +187,6 @@ async def predict_upload(
     This is the ONLY endpoint that saves to the database.
     """
     try:
-        from model_loader import ensure_models_loaded
         ensure_models_loaded()
         
         contents = await file.read()
