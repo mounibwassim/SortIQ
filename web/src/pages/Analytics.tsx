@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Loader2, Activity, RefreshCw } from "lucide-react";
-import api from "../api";
+import api, { BASE_URL } from "../api";
 import { useSettings } from "../context/SettingsContext";
 
 interface StatsResponse {
@@ -276,7 +276,7 @@ const Analytics = () => {
                 <div key={scan.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:shadow-md transition-all">
                   <div className="h-48 bg-slate-100 relative overflow-hidden">
                     {scan.image_thumbnail_url ? (
-                      <img src={import.meta.env.VITE_API_URL + scan.image_thumbnail_url} alt="thumbnail" className="w-full h-full object-cover" />
+                      <img src={BASE_URL + scan.image_thumbnail_url} alt="thumbnail" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400">
                         No Image

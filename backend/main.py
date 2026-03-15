@@ -70,6 +70,14 @@ app.include_router(settings.router, prefix="/settings", tags=["Settings"])
 os.makedirs("uploads/thumbnails", exist_ok=True)
 app.mount("/static/thumbnails", StaticFiles(directory="uploads/thumbnails"), name="thumbnails")
 
-@app.get("/")
+@app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Welcome to SortIQ API"}
+    """
+    Root endpoint to verify API is active.
+    """
+    return {
+        "status": "online",
+        "message": "SortIQ AI Backend is running",
+        "docs": "/docs",
+        "health": "/health"
+    }

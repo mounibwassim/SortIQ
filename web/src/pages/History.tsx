@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2, Calendar, FileImage, RefreshCw, Trash2, X, AlertTriangle, ChevronRight } from "lucide-react";
-import api from "../api";
+import api, { BASE_URL } from "../api";
 import { useSettings } from "../context/SettingsContext";
 
 interface ScanHistory {
@@ -102,7 +102,7 @@ const DetailDrawer = ({
           <div className="w-full aspect-square bg-slate-100 rounded-2xl mb-6 overflow-hidden relative shadow-inner border border-slate-200">
             {scan.image_thumbnail_url ? (
               <img 
-                src={import.meta.env.VITE_API_URL + scan.image_thumbnail_url} 
+                src={BASE_URL + scan.image_thumbnail_url} 
                 alt="Scan Thumbnail" 
                 className="w-full h-full object-cover" 
               />
@@ -355,7 +355,7 @@ const HistoryPage = () => {
                           style={isWaste ? { borderColor: dotColor } : undefined}
                         >
                           {scan.image_thumbnail_url ? (
-                            <img src={import.meta.env.VITE_API_URL + scan.image_thumbnail_url} alt="thumbnail" className="w-full h-full object-cover" />
+                            <img src={BASE_URL + scan.image_thumbnail_url} alt="thumbnail" className="w-full h-full object-cover" />
                           ) : (
                             <FileImage className={`w-6 h-6 ${isWaste ? 'text-slate-400' : 'text-indigo-400'}`} />
                           )}
