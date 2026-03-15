@@ -12,10 +12,10 @@ import base64
 import numpy as np  # pyre-ignore
 from PIL import Image  # pyre-ignore
 
-from database import get_db, WasteScan  # pyre-ignore
-from schemas import RealtimePredictRequest, RealtimePredictResponse  # pyre-ignore
-from model_loader import get_model, SortIQModel, THRESHOLDS, ensure_models_loaded  # pyre-ignore
-from logger import logger  # pyre-ignore
+from database import get_db, WasteScan
+from schemas import RealtimePredictRequest, RealtimePredictResponse
+from model_loader import get_model, SortIQModel, ensure_models_loaded
+from logger import logger
 from preprocessing import generate_thumbnail  # pyre-ignore
 
 # Only these classes should be stored in history
@@ -113,9 +113,10 @@ def generate_summary(detections: List[dict]) -> str:
 @router.post("-realtime", response_model=RealtimePredictResponse)
 async def predict_realtime(
     req: RealtimePredictRequest,
-    request: Request,
-    model: SortIQModel = Depends(get_model)
+    request: Request
 ):
+    from model_loader import get_model
+    model = get_model()
     """
     Robot Team Realtime Pipeline (Preview Only).
     No database writes allowed here.
@@ -179,9 +180,10 @@ async def predict_realtime(
 async def predict_upload(
     request: Request,
     file: UploadFile = File(...),
-    model: SortIQModel = Depends(get_model),
     db: Session = Depends(get_db)
 ):
+    from model_loader import get_model
+    model = get_model()
     """
     Manual Capture Endpoint.
     This is the ONLY endpoint that saves to the database.

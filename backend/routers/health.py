@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends  # pyre-ignore
 from sqlalchemy.orm import Session  # pyre-ignore
 from sqlalchemy import text  # pyre-ignore
 
-from database import get_db  # pyre-ignore
-from model_loader import get_model, SortIQModel  # pyre-ignore
-from schemas import HealthResponse  # pyre-ignore
+from database import get_db
+from model_loader import get_model, SortIQModel
+from schemas import HealthResponse
 from logger import logger  # pyre-ignore
 
 router = APIRouter()
@@ -26,9 +26,14 @@ async def check_health(
         logger.error(f"Healthcheck DB failure: {str(e)}")
         
     # Check Model loaded
+    from model_loader import ensure_models_loaded, get_model
+    import os
+    ensure_models_loaded()
+    model_instance = get_model()
+    
     model_loaded = False
-    if model_instance.model is not None:
-        model_loaded = True
+    if model_instance and model_instance.model is not None:
+         model_loaded = True
     else:
         logger.error("Healthcheck Model failure: Model not loaded in memory")
         

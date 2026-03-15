@@ -9,17 +9,17 @@ from model_loader import get_model
 from logger import logger
 from routers import predict, stats, history, health, settings
 
-# Lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("SortIQ starting up - models will load on first request")
-    # Ensure upload directories exist
+    import os as _os
+    _os.environ["TF_USE_LEGACY_KERAS"] = "1"
+    logger.info("SortIQ starting up - loading models now...")
     os.makedirs("uploads/thumbnails", exist_ok=True)
-    # Initialize DB tables
     create_tables()
-    
+    model = get_model()
+    model.load()
+    logger.info("All models loaded successfully")
     yield
-    logger.info("Shutting down SortIQ Backend...")
 
 app = FastAPI(
     title="SortIQ API",

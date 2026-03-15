@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends  # pyre-ignore
 from pydantic import BaseModel  # pyre-ignore
 from typing import Dict, Any, Optional
 
-from model_loader import get_model, SortIQModel  # pyre-ignore
-from logger import logger  # pyre-ignore
+from model_loader import get_model, SortIQModel
+from logger import logger
 
 router = APIRouter()
 
@@ -14,9 +14,10 @@ class SettingsUpdate(BaseModel):
 
 @router.post("")
 async def update_settings(
-    settings: SettingsUpdate,
-    model: SortIQModel = Depends(get_model)
+    settings: SettingsUpdate
 ):
+    from model_loader import get_model
+    model = get_model()
     """
     Update global model settings (e.g. confidence threshold).
     """
