@@ -1,4 +1,4 @@
-import os
+﻿import os
 from fastapi import FastAPI, Depends, Request  # pyre-ignore
 from fastapi.middleware.cors import CORSMiddleware  # pyre-ignore
 from fastapi.staticfiles import StaticFiles  # pyre-ignore
@@ -58,3 +58,4 @@ def read_root():
         "docs": "/docs",
         "health": "/health"
     }
+

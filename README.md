@@ -1,7 +1,6 @@
 # ♻️ SortIQ — AI-Powered Waste Sorting Platform
 
-> Smart waste classification using a 7-Robot AI architecture.
-> Detects Glass, Plastic, Metal and Paper in real time.
+> 
 
 ![SortIQ](logo.png)
 
@@ -131,14 +130,11 @@ brochure, flyer, poster, sticky note, greeting card
 |-------|-----------|
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | Backend | FastAPI + Python 3.10 |
-| Object Detection | YOLOv8s (Ultralytics) |
-| Waste Classification | MobileNetV2 (TensorFlow + tf-keras) |
+| Object Detection | YOLOv8n (Lightweight) |
+| Waste Classification | MobileNetV2 (TensorFlow) |
 | Image Processing | OpenCV + Pillow |
 | Database | SQLite + SQLAlchemy |
-| Frontend Hosting | Vercel |
-| Backend Hosting | Render |
-| Charts | Recharts |
-| Icons | Lucide React |
+| Hosting | Vercel (Frontend Only) |
 
 ---
 
@@ -195,49 +191,6 @@ Frontend runs at: http://localhost:5173
 
 Open your browser and go to:
 http://localhost:5173
-
----
-
-## 📁 Project Structure
-
-```
-SortIQ/
-├── backend/                 → FastAPI backend + AI models
-│   ├── model/
-│   │   ├── sortiq_model.h5  → Trained MobileNetV2 model
-│   │   └── classes.json     → Class label mapping
-│   ├── routers/
-│   │   ├── predict.py       → /predict-upload + /predict-realtime
-│   │   ├── history.py       → /history endpoints
-│   │   ├── stats.py         → /stats endpoint
-│   │   └── settings.py      → /settings endpoint
-│   ├── model_loader.py      → 7-Robot AI pipeline
-│   ├── preprocessing.py     → Image processing + thumbnails
-│   ├── database.py          → SQLite database models
-│   ├── schemas.py           → Pydantic response schemas
-│   └── main.py              → FastAPI app entry point
-│
-├── web/                     → React frontend
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.tsx         → Camera scanner page
-│   │   │   ├── History.tsx      → Scan history page
-│   │   │   ├── Analytics.tsx    → Analytics dashboard
-│   │   │   └── Settings.tsx     → Settings page
-│   │   ├── components/
-│   │   │   └── CameraScanner.tsx → Live camera + circles
-│   │   ├── context/
-│   │   │   └── SettingsContext.tsx → Global settings state
-│   │   └── api.ts               → Axios API client
-│   └── public/
-│       └── logo.png             → SortIQ logo
-│
-├── .github/
-│   └── workflows/
-│       └── backend.yml      → CI/CD pipeline
-│
-└── README.md
-```
 
 ---
 
