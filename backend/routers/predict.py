@@ -122,6 +122,9 @@ async def predict_realtime(
     """
     global _last_frame_mean, _processing
     
+    from main import ensure_models_loaded
+    ensure_models_loaded()
+    
     if _processing:
         return RealtimePredictResponse(detections=[], summary="Busy", scene_state="skipped")
     _processing = True
@@ -185,6 +188,9 @@ async def predict_upload(
     This is the ONLY endpoint that saves to the database.
     """
     try:
+        from main import ensure_models_loaded
+        ensure_models_loaded()
+        
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
         if image.mode != "RGB":

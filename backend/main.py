@@ -9,18 +9,27 @@ from model_loader import get_model  # pyre-ignore
 from logger import logger  # pyre-ignore
 from routers import predict, stats, history, health, settings  # pyre-ignore
 
+# Lazy loading state
+_models_loaded = False
+
+def ensure_models_loaded():
+    global _models_loaded
+    if not _models_loaded:
+        logger.info("Lazy loading models on first request...")
+        model = get_model()
+        model.load()
+        _models_loaded = True
+
 # Lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting up SortIQ Backend...")
+    logger.info("SortIQ starting up - models will load on first request")
     # Ensure upload directories exist
     os.makedirs("uploads/thumbnails", exist_ok=True)
     # Initialize DB tables
     create_tables()
     
-    # Load ML Model (which includes warm-up)
-    model = get_model()
-    model.load()
+    # Models are NO LONGER loaded here to save startup memory
     
     yield
     logger.info("Shutting down SortIQ Backend...")

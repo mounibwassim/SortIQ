@@ -884,14 +884,38 @@ class SortIQModel:
         return cls._instance
         
     def load(self):
-        """Loads both YOLOv8 (Brain 1) and MobileNetV2 (Brain 2) into memory."""
-        # 1. Load YOLOv8 (Object Detection)
+        import gc
+        import os
+        
+        # Free memory before loading models
+        gc.collect()
+        
+        # Set TF to use minimal memory
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        os.environ["TF_USE_LEGACY_KERAS"]   = "1"
+        
+        # Limit TensorFlow memory growth
+        import tensorflow as tf
+        gpus = tf.config.experimental.list_physical_devices("GPU")
+        if gpus:
+            for gpu in gpus:
+                try:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                except:
+                    pass
+        
+        # Configure TF to use minimal CPU memory
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+
+        # 1. Load YOLOv8n (Lightweight)
         try:
-            logger.info("Loading YOLOv8s model...")
-            self.yolo_model = YOLO("yolov8s.pt")
-            logger.info("YOLOv8s loaded successfully.")
+            logger.info("Loading YOLOv8n model...")
+            self.yolo_model = YOLO("yolov8n.pt")
+            gc.collect()  # free memory after YOLO loads
+            logger.info("YOLOv8n loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load YOLO model: {str(e)}")
+            logger.error(f"Failed to load YOLO: {e}")
             self.yolo_model = None
 
         # 2. Load MobileNetV2 (Waste Classification)
@@ -918,6 +942,8 @@ class SortIQModel:
         if self.model is not None:
             _ = self.model.predict(dummy_input, verbose=0)
         logger.info("Model warm-up successful.")
+        
+        gc.collect()  # free memory after both models load
             
         # Load class mapping
         if self.model is not None:
