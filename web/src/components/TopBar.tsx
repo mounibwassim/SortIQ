@@ -14,7 +14,7 @@ const TopBar = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 border-b border-slate-800 md:hidden">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
       <div className="flex items-center justify-between px-6 py-4">
         <Link to="/" className="flex items-center gap-3">
           <img
@@ -22,14 +22,14 @@ const TopBar = () => {
             alt="SortIQ"
             className="h-11 w-11 object-contain rounded-xl"
           />
-          <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <span className="text-2xl font-extrabold text-slate-800 tracking-tight">
             SortIQ
           </span>
         </Link>
         
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-slate-300 hover:text-white"
+          className="p-2 text-slate-500 hover:text-slate-800 md:hidden"
         >
           <Menu className="w-6 h-6" />
         </button>
@@ -37,7 +37,7 @@ const TopBar = () => {
 
       {/* Mobile Menu Dropdown */}
       {isMenuOpen && (
-        <div className="bg-slate-900 border-b border-slate-800 animate-in slide-in-from-top duration-300">
+        <div className="bg-white border-b border-slate-200 animate-in slide-in-from-top duration-300 md:hidden">
           <div className="px-4 py-4 flex flex-col gap-2">
             {links.map((link) => (
               <Link

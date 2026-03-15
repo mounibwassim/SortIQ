@@ -14,20 +14,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 h-screen text-slate-100 flex flex-col hidden md:flex fixed top-0 left-0">
-      <div className="p-10 border-b border-slate-800">
-        <div className="flex flex-col items-center gap-6">
-          <img
-            src="/logo.png"
-            alt="SortIQ"
-            className="h-28 w-28 object-contain rounded-2xl"
-            style={{ imageRendering: "crisp-edges" }}
-          />
-          <span className="text-5xl font-extrabold text-white tracking-tight">
-            SortIQ
-          </span>
-        </div>
-      </div>
+    <div className="w-64 bg-slate-900 h-screen text-slate-100 flex flex-col hidden md:flex fixed top-0 left-0 border-r border-slate-800 pt-20">
       <div className="flex-1 py-6 flex flex-col gap-2 px-4">
         {links.map((link) => (
           <Link

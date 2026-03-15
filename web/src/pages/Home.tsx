@@ -115,7 +115,8 @@ const Home = () => {
             "X-Color-Plastic": colors.Plastic || "#3b82f6",
             "X-Color-Metal":   colors.Metal   || "#eab308",
             "X-Color-Paper":   colors.Paper   || "#f97316",
-          }
+          },
+          timeout: 45000 // High timeout for potential lazy loading on first request
         }
       );
       const data = response.data;
