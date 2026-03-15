@@ -15,15 +15,15 @@ const Sidebar = () => {
 
   return (
     <div className="w-64 bg-slate-900 h-screen text-slate-100 flex flex-col hidden md:flex fixed top-0 left-0">
-      <div className="p-8 border-b border-slate-800">
-        <div className="flex flex-col items-center gap-4">
+      <div className="p-10 border-b border-slate-800">
+        <div className="flex flex-col items-center gap-6">
           <img
             src="/logo.png"
             alt="SortIQ Logo"
-            className="h-20 w-20 object-contain"
+            className="h-28 w-28 object-contain"
             style={{ imageRendering: "crisp-edges" }}
           />
-          <span className="text-4xl font-black text-white tracking-tighter">
+          <span className="text-5xl font-black text-white tracking-tighter">
             SortIQ
           </span>
         </div>
