@@ -23,6 +23,7 @@ const Home = () => {
   
   // API State
   const [error, setError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(true);
   const [flash, setFlash] = useState(false);
   
   // Bounding boxes and Best Result
@@ -186,6 +187,7 @@ const Home = () => {
 
     } catch (err) {
       console.error(err);
+      setConnected(false);
       setError("⚠️ Connection lost. Retrying backend...");
     } finally {
       isRequestingRef.current = false;
@@ -246,6 +248,8 @@ const Home = () => {
 
       const data = response.data;
       console.log("Upload response:", data);
+      setConnected(true);
+      setError(null);
 
       if (data.saved) {
         window.dispatchEvent(new CustomEvent('sortiq:scan_saved'));
@@ -266,6 +270,7 @@ const Home = () => {
 
     } catch (err: any) {
       console.error("Capture error:", err?.response?.data || err);
+      setConnected(false);
       setError("Capture failed. Check backend is running.");
     } finally {
       setIsCapturing(false);
@@ -351,12 +356,32 @@ const Home = () => {
             )}
 
             {error && !bestResult && (
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 flex flex-col items-center text-center max-w-sm">
-                  <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                  <h3 className="font-bold text-red-900 mb-1">Notice</h3>
-                  <p className="text-xs text-red-700/80 leading-relaxed">{error}</p>
-                </div>
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                {!connected ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center max-w-sm">
+                    <p className="text-amber-800 font-bold text-sm">
+                      🖥️ Backend is offline
+                    </p>
+                    <p className="text-amber-700 text-xs mt-1">
+                      This is a portfolio demo. To run locally:
+                      clone the repo and start the backend.
+                    </p>
+                    <a 
+                      href="https://github.com/mounibwassim/SortIQ"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-amber-600 underline mt-1 inline-block font-semibold"
+                    >
+                      📂 View on GitHub →
+                    </a>
+                  </div>
+                ) : (
+                  <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 flex flex-col items-center text-center max-w-sm">
+                    <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+                    <h3 className="font-bold text-red-900 mb-1">Notice</h3>
+                    <p className="text-xs text-red-700/80 leading-relaxed">{error}</p>
+                  </div>
+                )}
               </div>
             )}
 
