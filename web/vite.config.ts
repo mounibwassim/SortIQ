@@ -13,6 +13,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/predict-realtime': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/history': {
         target: 'http://localhost:8001',
         changeOrigin: true,

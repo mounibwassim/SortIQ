@@ -23,7 +23,7 @@ const Home = () => {
   
   // API State
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
   const [flash, setFlash] = useState(false);
   
   // Bounding boxes and Best Result
