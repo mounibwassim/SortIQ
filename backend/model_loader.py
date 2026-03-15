@@ -1548,6 +1548,17 @@ class SortIQModel:
             raise RuntimeError("Unexpected prediction failure") from e
 
 
+# Lazy loading state
+_models_loaded = False
+
+def ensure_models_loaded():
+    global _models_loaded
+    if not _models_loaded:
+        logger.info("Lazy loading models on first request...")
+        model = get_model()
+        model.load()
+        _models_loaded = True
+
 # Singleton instance access
 model_instance = SortIQModel()
 

@@ -9,17 +9,6 @@ from model_loader import get_model  # pyre-ignore
 from logger import logger  # pyre-ignore
 from routers import predict, stats, history, health, settings  # pyre-ignore
 
-# Lazy loading state
-_models_loaded = False
-
-def ensure_models_loaded():
-    global _models_loaded
-    if not _models_loaded:
-        logger.info("Lazy loading models on first request...")
-        model = get_model()
-        model.load()
-        _models_loaded = True
-
 # Lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,8 +17,6 @@ async def lifespan(app: FastAPI):
     os.makedirs("uploads/thumbnails", exist_ok=True)
     # Initialize DB tables
     create_tables()
-    
-    # Models are NO LONGER loaded here to save startup memory
     
     yield
     logger.info("Shutting down SortIQ Backend...")
@@ -40,8 +27,6 @@ app = FastAPI(
     version=os.getenv("MODEL_VERSION", "v1.0"),
     lifespan=lifespan
 )
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,

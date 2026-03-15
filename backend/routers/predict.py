@@ -122,7 +122,7 @@ async def predict_realtime(
     """
     global _last_frame_mean, _processing
     
-    from main import ensure_models_loaded
+    from model_loader import ensure_models_loaded
     ensure_models_loaded()
     
     if _processing:
@@ -188,7 +188,7 @@ async def predict_upload(
     This is the ONLY endpoint that saves to the database.
     """
     try:
-        from main import ensure_models_loaded
+        from model_loader import ensure_models_loaded
         ensure_models_loaded()
         
         contents = await file.read()
