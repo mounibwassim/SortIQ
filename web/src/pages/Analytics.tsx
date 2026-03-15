@@ -121,7 +121,7 @@ const Analytics = () => {
       case 'Glass': return 'Rinse carefully. Remove lids if metal.';
       case 'Plastic': return 'Empty liquids. Crush to save space.';
       case 'Metal': return 'Rinse cans. Do not crush aluminum if prohibited.';
-      case 'Paper': return 'Keep dry. Flatten cardboard boxes.';
+      case 'Paper': return 'Most paper products are highly recyclable!';
       default: return 'Recycle responsibly.';
     }
   };
