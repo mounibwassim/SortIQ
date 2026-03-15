@@ -333,7 +333,10 @@ const HistoryPage = () => {
                 <FileImage className="w-8 h-8 text-slate-300" />
             </div>
             <p className="font-bold text-lg text-slate-600">No {filterMode !== 'all' ? filterMode : ''} scans found</p>
-            <p className="text-sm mt-1">Keep scanning to populate your history dashboard!</p>
+            <p className="text-sm mt-1 mb-4">Keep scanning to populate your history dashboard!</p>
+            <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+              API: {BASE_URL}
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">

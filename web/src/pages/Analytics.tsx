@@ -79,12 +79,14 @@ const Analytics = () => {
   }
 
   if (!stats) {
+    return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 gap-3">
         <Activity className="w-10 h-10" />
         <p className="font-medium">Error loading analytics data.</p>
         <p className="text-xs">Connecting to: <code className="bg-slate-100 px-1 rounded">{BASE_URL}</code></p>
         <p className="text-xs text-slate-500 mt-2">Check if the backend is running and the URL is correct.</p>
       </div>
+    );
   }
 
   // TASK 1: Fix crash (null safety)
