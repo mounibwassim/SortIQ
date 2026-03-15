@@ -905,7 +905,7 @@ class SortIQModel:
             self.model = tf_keras.models.load_model(
                 model_path, 
                 compile=False,
-                custom_objects={'BatchNormalization': BatchNormalization}
+                custom_objects={'BatchNormalization': KerasBatchNormalization}
             )
             logger.info("Model loaded successfully")
         except Exception as e:

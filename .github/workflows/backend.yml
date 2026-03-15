@@ -34,7 +34,7 @@ jobs:
       run: |
         python -c "from fastapi import FastAPI; print('FastAPI OK')"
         python -c "from database import Base, engine; Base.metadata.create_all(bind=engine); print('Database OK')"
-        python -c "from schemas import PredictUploadResponse; print('Schemas OK')"
+        python -c "from schemas import RealtimePredictResponse; print('Schemas OK')"
         echo "All imports verified"
 
     - name: Run tests
