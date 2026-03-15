@@ -1,20 +1,25 @@
 # ♻️ SortIQ — AI-Powered Waste Sorting Platform
 
-> 
+> **IMPORTANT: Local Execution Recommended**
+> SortIQ uses a powerful 7-Robot AI architecture (YOLOv8 + TensorFlow) that requires more memory than a standard free tier provides. For a fast, stable experience, run the system locally.
 
 ![SortIQ](logo.png)
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Project Status
 
-| Platform | URL |
-|----------|-----|
-| Web App  | https://sortiq-web.vercel.app |
-| API      | https://sortiq-backend.onrender.com |
-| API Docs | https://sortiq-backend.onrender.com/docs |
+| Component | Status | URL |
+|-----------|--------|-----|
+| Frontend  | 💻 Live (Vercel) | https://sortiq-web.vercel.app |
+| Backend   | 🏠 Local Only | Run locally on port 8001 |
 
----
+> [!IMPORTANT]
+> **Why is the backend local?**
+> The SortIQ AI engine (TensorFlow + YOLOv8) requires ~800MB–1GB of RAM to run smoothly. The Render Free Tier limits memory to 512MB, which causes crashes. 
+> 
+> **Recommendation for Production:** 
+> To host the backend live, we recommend upgrading to **Render's Starter Tier ($7/month)** which provides 2GB of RAM—plenty of power for the full Robot Team.
 
 ## ✨ Key Features
 

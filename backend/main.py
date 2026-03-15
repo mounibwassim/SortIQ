@@ -1,13 +1,13 @@
 ﻿import os
-from fastapi import FastAPI, Depends, Request  # pyre-ignore
-from fastapi.middleware.cors import CORSMiddleware  # pyre-ignore
-from fastapi.staticfiles import StaticFiles  # pyre-ignore
+from fastapi import FastAPI, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from database import create_tables  # pyre-ignore
-from model_loader import get_model  # pyre-ignore
-from logger import logger  # pyre-ignore
-from routers import predict, stats, history, health, settings  # pyre-ignore
+from database import create_tables
+from model_loader import get_model
+from logger import logger
+from routers import predict, stats, history, health, settings
 
 # Lifespan context manager for startup/shutdown events
 @asynccontextmanager
@@ -58,4 +58,3 @@ def read_root():
         "docs": "/docs",
         "health": "/health"
     }
-

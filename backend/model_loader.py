@@ -937,11 +937,16 @@ class SortIQModel:
             raise RuntimeError(f"Failed to load model from {model_path}: {e}")
         
         # Validate with warm-up
-        logger.info("Validating model with warm-up...")
-        dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
         if self.model is not None:
-            _ = self.model.predict(dummy_input, verbose=0)
-        logger.info("Model warm-up successful.")
+            logger.info("Validating model with warm-up...")
+            try:
+                dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+                _ = self.model.predict(dummy_input, verbose=0)
+                logger.info("Model warm-up successful.")
+            except Exception as e:
+                logger.warning(f"Warm-up failed (non-critical): {e}")
+        else:
+            logger.warning("Main model is None - skipping warm-up")
         
         gc.collect()  # free memory after both models load
             
