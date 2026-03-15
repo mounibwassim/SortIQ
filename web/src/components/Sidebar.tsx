@@ -19,11 +19,11 @@ const Sidebar = () => {
         <div className="flex flex-col items-center gap-6">
           <img
             src="/logo.png"
-            alt="SortIQ Logo"
-            className="h-28 w-28 object-contain"
+            alt="SortIQ"
+            className="h-28 w-28 object-contain rounded-2xl"
             style={{ imageRendering: "crisp-edges" }}
           />
-          <span className="text-5xl font-black text-white tracking-tighter">
+          <span className="text-5xl font-extrabold text-white tracking-tight">
             SortIQ
           </span>
         </div>

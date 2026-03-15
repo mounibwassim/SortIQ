@@ -19,10 +19,10 @@ const TopBar = () => {
         <Link to="/" className="flex items-center gap-3">
           <img
             src="/logo.png"
-            alt="SortIQ Logo"
-            className="h-10 w-10 object-contain"
+            alt="SortIQ"
+            className="h-11 w-11 object-contain rounded-xl"
           />
-          <span className="text-2xl font-black text-white tracking-tighter">
+          <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
             SortIQ
           </span>
         </Link>
