@@ -11,7 +11,7 @@
 
 | Component | Status | URL |
 |-----------|--------|-----|
-| Frontend  | 💻 Live (Vercel) | https://sortiq-web.vercel.app |
+| Frontend  | 💻 Live (Vercel) | https://sort-iq-five.vercel.app/ |
 | Backend   | 🏠 Local Only | Run locally on port 8001 |
 
 > [!IMPORTANT]
