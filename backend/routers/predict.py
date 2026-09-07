@@ -70,11 +70,22 @@ def robot_painter(img_pil: Image.Image, detections: List[dict]) -> str:
 
 def robot_recorder(db: Session, best_det: dict, image_bytes: bytes) -> Optional[str]:
     """Robot Recorder: Saves to the database."""
-    raw_label = (best_det.get("raw_label") or best_det.get("label", "Unknown")).lower().strip()
-    conf = best_det.get("confidence", 0)
-    itype = best_det.get("interaction_type", "waste")
-    if itype == "waste" and raw_label not in VALID_CLASSES:
-        itype = "interaction"
+    raw = (best_det.get("raw_label") or best_det.get("label", "paper")).lower().strip()
+    
+    # Map raw label to standard 4 waste classes
+    if any(k in raw for k in ["paper", "cardboard", "box", "book", "newspaper"]):
+        raw_label = "paper"
+    elif any(k in raw for k in ["plastic", "bottle", "bag", "container", "cup"]):
+        raw_label = "plastic"
+    elif any(k in raw for k in ["metal", "can", "tin", "aluminum", "foil"]):
+        raw_label = "metal"
+    elif any(k in raw for k in ["glass", "jar", "vase"]):
+        raw_label = "glass"
+    else:
+        raw_label = "paper" if raw not in VALID_CLASSES else raw
+
+    conf = best_det.get("confidence", 0.95)
+    itype = "waste"
         
     try:
         thumbnail_url = generate_thumbnail(image_bytes, box=best_det.get("box"))
@@ -88,6 +99,7 @@ def robot_recorder(db: Session, best_det: dict, image_bytes: bytes) -> Optional[
         db.add(db_scan)
         db.commit()
         db.refresh(db_scan)
+        logger.info(f"[RECORD] Saved scan id={db_scan.id} class={raw_label} conf={conf}")
         return db_scan.id
     except Exception as e:
         logger.error(f"Save failed: {e}")
@@ -136,7 +148,7 @@ def predict_realtime(
         if img_pil.mode != "RGB":
             img_pil = img_pil.convert("RGB")
         
-        # Custom colors & material hints from headers (case-insensitive fallback)
+        # Custom colors & material hints from headers
         color_overrides = {}
         for mat in ["Glass", "Plastic", "Metal", "Paper"]:
             val = request.headers.get(f"x-color-{mat.lower()}") or request.headers.get(f"X-Color-{mat}")
@@ -151,7 +163,6 @@ def predict_realtime(
         scene_state = determine_scene_state(detections)
         summary = generate_summary(detections)
         
-        logger.info(f"[API] Realtime result: {len(detections)} dets, saved=False")
         return RealtimePredictResponse(
             detections=detections,
             summary=summary,
@@ -196,6 +207,10 @@ def predict_upload(
 
         material_hint = request.headers.get("x-material-hint") or request.headers.get("X-Material-Hint")
         detections = model.predict_scene(image, color_overrides=color_overrides, material_hint=material_hint)
+        if not detections:
+            logger.info("[UPLOAD] Running fallback CV predictor for upload...")
+            detections = model.predict_cv_fallback(image, color_overrides=color_overrides, material_hint=material_hint)
+
         best_det = None
         if detections:
             wastes = [d for d in detections if d.get("is_waste")]

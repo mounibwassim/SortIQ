@@ -328,16 +328,21 @@ const Home = () => {
 
       const { colors } = useSettingsRef.current;
 
+      const uploadHeaders: Record<string, string> = {
+        "X-Color-Glass":   colors?.Glass   || "#22c55e",
+        "X-Color-Plastic": colors?.Plastic || "#3b82f6",
+        "X-Color-Metal":   colors?.Metal   || "#eab308",
+        "X-Color-Paper":   colors?.Paper   || "#f97316",
+      };
+      if (bestResult?.label) {
+        uploadHeaders["X-Material-Hint"] = bestResult.label;
+      }
+
       const response = await api.post(
         "/predict-upload",
         formData,
         {
-          headers: {
-            "X-Color-Glass":   colors?.Glass   || "#22c55e",
-            "X-Color-Plastic": colors?.Plastic || "#3b82f6",
-            "X-Color-Metal":   colors?.Metal   || "#eab308",
-            "X-Color-Paper":   colors?.Paper   || "#f97316",
-          },
+          headers: uploadHeaders,
           timeout: 20000,
         }
       );
