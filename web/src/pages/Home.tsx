@@ -140,7 +140,7 @@ const Home = () => {
   };
 
   // Real-time frame handler
-  const handleFrame = async (base64: string) => {
+  const handleFrame = async (base64: string, materialHint?: string) => {
     if (isFrozen || isRequestingRef.current) return;
 
     isRequestingRef.current = true;
@@ -152,15 +152,21 @@ const Home = () => {
         return;
       }
 
+      const headers: Record<string, string> = {
+        "X-Color-Glass":   colors.Glass   || "#22c55e",
+        "X-Color-Plastic": colors.Plastic || "#3b82f6",
+        "X-Color-Metal":   colors.Metal   || "#eab308",
+        "X-Color-Paper":   colors.Paper   || "#f97316",
+      };
+
+      if (materialHint) {
+        headers["X-Material-Hint"] = materialHint;
+      }
+
       const response = await api.post<RealtimePredictResponse>("/predict-realtime", 
         { frame_base64: base64 },
         {
-          headers: {
-            "X-Color-Glass":   colors.Glass   || "#22c55e",
-            "X-Color-Plastic": colors.Plastic || "#3b82f6",
-            "X-Color-Metal":   colors.Metal   || "#eab308",
-            "X-Color-Paper":   colors.Paper   || "#f97316",
-          },
+          headers,
           timeout: 15000
         }
       );

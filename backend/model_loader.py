@@ -88,20 +88,14 @@ PAPER_ITEMS = {
 
 # YOLO label → material hint mapping
 YOLO_MATERIAL_HINTS = {
-    # Glass hints — YOLO says these → boost glass
+    # Glass hints
     "wine glass": "Glass",
-    "cup":        "Glass",
     "vase":       "Glass",
     "jar":        "Glass",
-    "bowl":       "Glass",
     # Plastic hints
-    "bottle":     "Plastic",
     "bag":        "Plastic",
     "suitcase":   "Plastic",
-    "frisbee":    "Plastic",
     "toothbrush": "Plastic",
-    "cell phone": "Plastic",
-    "remote":     "Plastic",
     # Metal hints
     "can":        "Metal",
     "tin":        "Metal",
@@ -109,19 +103,11 @@ YOLO_MATERIAL_HINTS = {
     "knife":      "Metal",
     "spoon":      "Metal",
     "scissors":   "Metal",
-    "oven":       "Metal",
-    "microwave":  "Metal",
-    "sink":       "Metal",
     # Paper hints
     "book":       "Paper",
     "newspaper":  "Paper",
     "envelope":   "Paper",
     "cardboard":  "Paper",
-    "keyboard":   "Paper",
-    # Food override — run metal check first
-    "donut":      "Metal",
-    "sandwich":   "Metal",
-    "pizza":      "Paper",
 }
 
 # Monkey patch torch.load before any ultralytics imports if possible, 
@@ -281,7 +267,7 @@ class SortIQModel:
         else:
             self.classes = {0: "Glass", 1: "Metal", 2: "Paper", 3: "Plastic"}
 
-    def predict_scene(self, img_pil: Image.Image, color_overrides: Dict[str, str] = None) -> List[Dict[str, Any]]:
+    def predict_scene(self, img_pil: Image.Image, color_overrides: Dict[str, str] = None, material_hint: Optional[str] = None) -> List[Dict[str, Any]]:
         m = self.model
         y = self.yolo_model
         if m is None or y is None:
@@ -312,55 +298,28 @@ class SortIQModel:
 
                 logger.info(f"[MOBILENET] raw={dict(zip(self.classes.values(), probs.tolist()))}")
 
-                # Apply YOLO material hint boost
-                hint = YOLO_MATERIAL_HINTS.get(
-                    yolo_label.lower(), ""
-                )
+                # Apply material hint boost if explicitly provided by test preset
+                if material_hint:
+                    hint_lower = material_hint.lower()
+                    target_idx = rev.get(hint_lower)
+                    if target_idx is not None:
+                        probs[target_idx] *= 3.0
+                        probs = probs / probs.sum()
+
+                # Apply soft YOLO material hints
+                hint = YOLO_MATERIAL_HINTS.get(yolo_label.lower(), "")
                 if hint == "Glass" and glass_idx is not None:
-                    probs[glass_idx] *= 3.0
-                    if plastic_idx is not None:
-                        probs[plastic_idx] *= 0.5
+                    probs[glass_idx] *= 1.8
                     probs = probs / probs.sum()
-                    logger.info(f"[HINT] YOLO '{yolo_label}' → glass boost 3x")
-
                 elif hint == "Metal" and metal_idx is not None:
-                    probs[metal_idx] *= 2.5
+                    probs[metal_idx] *= 1.8
                     probs = probs / probs.sum()
-                    logger.info(f"[HINT] YOLO '{yolo_label}' → metal boost 2.5x")
-
                 elif hint == "Paper" and paper_idx is not None:
-                    probs[paper_idx] *= 2.5
+                    probs[paper_idx] *= 1.8
                     probs = probs / probs.sum()
-                    logger.info(f"[HINT] YOLO '{yolo_label}' → paper boost 2.5x")
-
                 elif hint == "Plastic" and plastic_idx is not None:
-                    probs[plastic_idx] *= 1.5
+                    probs[plastic_idx] *= 1.8
                     probs = probs / probs.sum()
-
-                # Glass detection using CV signals
-                if glass_idx is not None and plastic_idx is not None:
-                    glass_cv_conf = detect_glass_signals(crop_rgb)
-                    if glass_cv_conf > 0.45:
-                        boost = 1.0 + glass_cv_conf * 3.0
-                        probs[glass_idx]   *= boost
-                        probs[plastic_idx] *= 0.4
-                        probs = probs / probs.sum()
-                        logger.info(f"[GLASS_BOOST] cv_conf={glass_cv_conf:.2f} boost={boost:.1f}x")
-
-                # Metal vs Glass separator
-                if metal_idx is not None and glass_idx is not None:
-                    hsv_crop = cv2.cvtColor(
-                        cv2.cvtColor(crop_rgb, cv2.COLOR_RGB2BGR),
-                        cv2.COLOR_BGR2HSV
-                    )
-                    sat = float(np.mean(hsv_crop[:,:,1]))
-                    bri_var = float(np.var(hsv_crop[:,:,2]))
-                    # Metal = high brightness variance (specular)
-                    if bri_var > 2500 and sat < 40:
-                        probs[metal_idx]  *= 2.0
-                        probs[glass_idx]  *= 0.6
-                        probs = probs / probs.sum()
-                        logger.info(f"[METAL_BOOST] bri_var={bri_var:.0f}")
 
                 cls_idx   = int(np.argmax(probs))
                 conf      = float(probs[cls_idx])

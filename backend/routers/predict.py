@@ -147,16 +147,18 @@ async def predict_realtime(
                 return RealtimePredictResponse(detections=[], summary="Skipped", scene_state="skipped")
         _last_frame_mean = current_mean
         
-        # Custom colors from headers
+        # Custom colors & material hints from headers
         color_overrides = {}
         for mat in ["Glass", "Plastic", "Metal", "Paper"]:
             val = request.headers.get(f"X-Color-{mat}")
             if val:
                 color_overrides[mat] = val
 
+        material_hint = request.headers.get("X-Material-Hint")
+
         # Prediction
         logger.info(f"[API] Calling model.predict_scene for REALTIME preview")
-        detections = model.predict_scene(img_pil, color_overrides=color_overrides)
+        detections = model.predict_scene(img_pil, color_overrides=color_overrides, material_hint=material_hint)
         scene_state = determine_scene_state(detections)
         summary = generate_summary(detections)
         

@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Play, Pause, Upload, RotateCcw, Sparkles, CheckCircle2, Film } from 'lucide-react';
+import { Play, Pause, Upload, RotateCcw, Sparkles, CheckCircle2, Film, FileVideo } from 'lucide-react';
 import { MATERIAL_SAMPLES, renderSampleFrame, type MaterialSample } from '../lib/sampleVideos';
 import type { Detection } from './CameraScanner';
 import { useSettings } from '../context/SettingsContext';
 
 interface VideoScannerProps {
-  onFrame: (base64: string) => void;
+  onFrame: (base64: string, materialHint?: string) => void;
   onCapture: (base64: string) => void;
   detections: Detection[];
   isCapturing?: boolean;
@@ -23,6 +23,7 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
   const [customFileName, setCustomFileName] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [useUploadMode, setUseUploadMode] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,15 +33,34 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
   const lastFrameTimeRef = useRef<number>(0);
 
   // ── 1. CUSTOM FILE UPLOAD HANDLER ──────────────────────────────────────
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = (file: File) => {
     if (!file) return;
-
     const url = URL.createObjectURL(file);
     setCustomVideoUrl(url);
     setCustomFileName(file.name);
     setUseUploadMode(true);
     setIsPlaying(true);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
   };
 
   // ── 2. SAMPLE ANIMATION LOOP & FRAME EXTRACTION ─────────────────────────
@@ -65,9 +85,10 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
 
     if (sourceCanvas) {
       const base64 = sourceCanvas.toDataURL('image/jpeg', 0.85);
-      onFrame(base64);
+      const hint = useUploadMode ? undefined : selectedSample.material;
+      onFrame(base64, hint);
     }
-  }, [useUploadMode, onFrame]);
+  }, [useUploadMode, selectedSample, onFrame]);
 
   // Animation Loop for Procedural Sample Video
   useEffect(() => {
@@ -84,8 +105,8 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
         }
       }
 
-      // Send frame every 700ms to backend
-      if (now - lastFrameTimeRef.current > 700) {
+      // Send frame every 500ms to backend for fast responsive scanning
+      if (now - lastFrameTimeRef.current > 500) {
         lastFrameTimeRef.current = now;
         processFrameAndSend();
       }
@@ -106,7 +127,7 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
 
     const interval = setInterval(() => {
       processFrameAndSend();
-    }, 700);
+    }, 500);
 
     return () => clearInterval(interval);
   }, [useUploadMode, isPlaying, processFrameAndSend]);
@@ -142,7 +163,7 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
       ctx.shadowBlur = 15;
       ctx.shadowColor = color;
       ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       if (det.is_waste) ctx.setLineDash([8, 4]);
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -196,12 +217,59 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 🎬 MATERIAL PRESET BUTTONS & CUSTOM UPLOAD */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-800 shadow-lg">
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileInputChange}
+        accept="video/*,image/*"
+        className="hidden"
+      />
+
+      {/* DRAG & DROP UPLOAD BANNER / SWITCHER */}
+      <div 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`p-4 rounded-2xl border-2 border-dashed transition-all flex flex-col sm:flex-row items-center justify-between gap-3 ${
+          isDragging 
+            ? 'bg-indigo-500/20 border-indigo-500 scale-[1.01]' 
+            : useUploadMode 
+            ? 'bg-slate-900 border-indigo-500/50 text-white' 
+            : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-400'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 shadow-inner">
+            <FileVideo className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">
+              {useUploadMode ? `Active Video: ${customFileName}` : 'Upload Conveyor Machine Video'}
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Drag & drop your machine video file (.mp4, .webm, .mov) or test preset feeds
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 flex items-center gap-2"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload Video File</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 🎬 MATERIAL PRESET TABS */}
+      <div className="flex items-center justify-between gap-2 bg-slate-900/95 p-3 rounded-2xl border border-slate-800 shadow-lg">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 flex items-center gap-1">
             <Film className="w-3.5 h-3.5 text-indigo-400" />
-            Test Videos:
+            Preset Feeds:
           </span>
           {MATERIAL_SAMPLES.map((sample) => {
             const isSelected = !useUploadMode && selectedSample.id === sample.id;
@@ -220,32 +288,10 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
                 }`}
               >
                 <span>{sample.icon}</span>
-                <span>{sample.name.split(' ')[0]}</span>
+                <span>{sample.name}</span>
               </button>
             );
           })}
-        </div>
-
-        {/* Custom Upload Button */}
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="video/*,image/*"
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              useUploadMode
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/40'
-            }`}
-          >
-            <Upload className="w-3.5 h-3.5" />
-            {useUploadMode ? (customFileName ? customFileName.slice(0, 12) + '...' : 'Custom Video') : 'Upload Video'}
-          </button>
         </div>
       </div>
 
@@ -284,16 +330,16 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
 
         {/* TOP STATUS BAR OVERLAY */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none">
-          <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+          <div className="bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              {useUploadMode ? 'Uploaded Video Stream' : `${selectedSample.material} Test Stream`}
+            <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              {useUploadMode ? 'Custom Video Machine Stream' : `${selectedSample.material} Material Feed`}
             </span>
           </div>
 
-          <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-[10px] font-black text-slate-300 uppercase tracking-widest">
-            AI Analyzer Active
+          <div className="bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-[10px] font-black text-slate-300 uppercase tracking-widest">
+            {detections.length > 0 ? `Detected ${detections.length} item(s)` : 'Scanning Stream...'}
           </div>
         </div>
 
