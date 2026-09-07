@@ -111,23 +111,20 @@ def generate_summary(detections: List[dict]) -> str:
     return "Scout: Non-recyclables detected."
 
 @router.post("-realtime", response_model=RealtimePredictResponse)
-async def predict_realtime(
+@router.post("/realtime", response_model=RealtimePredictResponse)
+@router.post("/predict-realtime", response_model=RealtimePredictResponse)
+def predict_realtime(
     req: RealtimePredictRequest,
     request: Request
 ):
-    from model_loader import get_model
-    model = get_model()
     """
     Robot Team Realtime Pipeline (Preview Only).
+    Offloaded to threadpool to avoid blocking asyncio loop.
     No database writes allowed here.
     """
-    global _last_frame_mean, _processing
-    
+    from model_loader import get_model
+    model = get_model()
     ensure_models_loaded()
-    
-    if _processing:
-        return RealtimePredictResponse(detections=[], summary="Busy", scene_state="skipped")
-    _processing = True
     
     try:
         b64_data = req.frame_base64
@@ -138,26 +135,18 @@ async def predict_realtime(
         img_pil = Image.open(io.BytesIO(image_bytes))
         if img_pil.mode != "RGB":
             img_pil = img_pil.convert("RGB")
-            
-        # Frame Deduplication
-        img_arr = np.array(img_pil)
-        current_mean = np.mean(img_arr)
-        if _last_frame_mean is not None:
-            if abs(current_mean - _last_frame_mean) / (_last_frame_mean + 1e-5) < 0.015:
-                return RealtimePredictResponse(detections=[], summary="Skipped", scene_state="skipped")
-        _last_frame_mean = current_mean
         
-        # Custom colors & material hints from headers
+        # Custom colors & material hints from headers (case-insensitive fallback)
         color_overrides = {}
         for mat in ["Glass", "Plastic", "Metal", "Paper"]:
-            val = request.headers.get(f"X-Color-{mat}")
+            val = request.headers.get(f"x-color-{mat.lower()}") or request.headers.get(f"X-Color-{mat}")
             if val:
                 color_overrides[mat] = val
 
-        material_hint = request.headers.get("X-Material-Hint")
+        material_hint = request.headers.get("x-material-hint") or request.headers.get("X-Material-Hint")
 
         # Prediction
-        logger.info(f"[API] Calling model.predict_scene for REALTIME preview")
+        logger.info(f"[API] Calling model.predict_scene for REALTIME preview (hint={material_hint})")
         detections = model.predict_scene(img_pil, color_overrides=color_overrides, material_hint=material_hint)
         scene_state = determine_scene_state(detections)
         summary = generate_summary(detections)
@@ -175,25 +164,25 @@ async def predict_realtime(
     except Exception as e:
         logger.error(f"Error in predict_realtime: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        _processing = False
 
 @router.post("-upload", response_model=RealtimePredictResponse)
-async def predict_upload(
+@router.post("/upload", response_model=RealtimePredictResponse)
+@router.post("/predict-upload", response_model=RealtimePredictResponse)
+def predict_upload(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    from model_loader import get_model
-    model = get_model()
     """
     Manual Capture Endpoint.
     This is the ONLY endpoint that saves to the database.
     """
+    from model_loader import get_model
+    model = get_model()
     try:
         ensure_models_loaded()
         
-        contents = await file.read()
+        contents = file.file.read()
         image = Image.open(io.BytesIO(contents))
         if image.mode != "RGB":
             image = image.convert("RGB")
@@ -201,11 +190,12 @@ async def predict_upload(
         # Custom colors from headers
         color_overrides = {}
         for mat in ["Glass", "Plastic", "Metal", "Paper"]:
-            val = request.headers.get(f"X-Color-{mat}")
+            val = request.headers.get(f"x-color-{mat.lower()}") or request.headers.get(f"X-Color-{mat}")
             if val:
                 color_overrides[mat] = val
 
-        detections = model.predict_scene(image, color_overrides=color_overrides)
+        material_hint = request.headers.get("x-material-hint") or request.headers.get("X-Material-Hint")
+        detections = model.predict_scene(image, color_overrides=color_overrides, material_hint=material_hint)
         best_det = None
         if detections:
             wastes = [d for d in detections if d.get("is_waste")]
@@ -233,7 +223,9 @@ async def predict_upload(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @router.post("-video", response_model=VideoPredictResponse)
-async def predict_video(
+@router.post("/video", response_model=VideoPredictResponse)
+@router.post("/predict-video", response_model=VideoPredictResponse)
+def predict_video(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -249,7 +241,7 @@ async def predict_video(
     ensure_models_loaded()
 
     try:
-        contents = await file.read()
+        contents = file.file.read()
         suffix = os.path.splitext(file.filename or "")[1] or ".mp4"
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:

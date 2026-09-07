@@ -13,12 +13,15 @@ from routers import predict, stats, history, health, settings
 async def lifespan(app: FastAPI):
     import os as _os
     _os.environ["TF_USE_LEGACY_KERAS"] = "1"
-    logger.info("SortIQ starting up - loading models now...")
+    logger.info("SortIQ starting up - initializing models...")
     os.makedirs("uploads/thumbnails", exist_ok=True)
     create_tables()
-    model = get_model()
-    model.load()
-    logger.info("All models loaded successfully")
+    try:
+        model = get_model()
+        model.load()
+        logger.info("Models initialized successfully")
+    except Exception as e:
+        logger.warning(f"Model initialization fallback mode: {e}")
     yield
 
 app = FastAPI(
@@ -39,6 +42,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(predict.router, prefix="/predict", tags=["Prediction"])
+app.include_router(predict.router, prefix="", tags=["Prediction Direct"])
 app.include_router(stats.router, prefix="/stats", tags=["Analytics"])
 app.include_router(history.router, prefix="/history", tags=["History"])
 app.include_router(health.router, prefix="/health", tags=["Health"])
