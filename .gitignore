@@ -38,3 +38,5 @@ model/*.pt
 /tmp/
 url.txt
 build_list.json
+backend/uploads/
+

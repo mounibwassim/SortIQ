@@ -13,7 +13,7 @@ import numpy as np  # pyre-ignore
 from PIL import Image  # pyre-ignore
 
 from database import get_db, WasteScan
-from schemas import RealtimePredictRequest, RealtimePredictResponse
+from schemas import RealtimePredictRequest, RealtimePredictResponse, VideoPredictResponse
 from model_loader import get_model, SortIQModel, ensure_models_loaded
 from logger import logger
 from preprocessing import generate_thumbnail  # pyre-ignore
@@ -229,3 +229,100 @@ async def predict_upload(
     except Exception as e:
         logger.error(f"Error in predict_upload: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@router.post("-video", response_model=VideoPredictResponse)
+async def predict_video(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Video Upload Analysis Endpoint.
+    Reads frames from uploaded video file, detects waste across frames,
+    and returns aggregated video analysis.
+    """
+    import tempfile
+    from model_loader import get_model
+    model = get_model()
+    ensure_models_loaded()
+
+    try:
+        contents = await file.read()
+        suffix = os.path.splitext(file.filename or "")[1] or ".mp4"
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        cap = cv2.VideoCapture(tmp_path)
+        if not cap.isOpened():
+            os.remove(tmp_path)
+            raise HTTPException(status_code=400, detail="Could not open video file.")
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+        # Custom colors from headers
+        color_overrides = {}
+        for mat in ["Glass", "Plastic", "Metal", "Paper"]:
+            val = request.headers.get(f"X-Color-{mat}")
+            if val:
+                color_overrides[mat] = val
+
+        # Sample 1 frame every 0.5s or max 30 frames
+        sample_interval = max(1, int(fps / 2))
+        all_detections = []
+        best_waste_det = None
+        best_conf = 0.0
+        frame_idx = 0
+        frames_analyzed = 0
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if frame_idx % sample_interval == 0:
+                frames_analyzed += 1
+                img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img_pil = Image.fromarray(img_rgb)
+
+                dets = model.predict_scene(img_pil, color_overrides=color_overrides)
+                for d in dets:
+                    all_detections.append(d)
+                    if d.get("is_waste") and d.get("confidence", 0) > best_conf:
+                        best_conf = d["confidence"]
+                        best_waste_det = d
+
+            frame_idx += 1
+            if frames_analyzed >= 30:
+                break
+
+        cap.release()
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
+        unique_labels = list({d.get("label") for d in all_detections if d.get("is_waste")})
+        primary = unique_labels[0] if unique_labels else None
+
+        summary = f"Video Analysis: {len(all_detections)} detection(s) across {frames_analyzed} frames."
+        if primary:
+            summary += f" Primary waste identified: {primary}."
+
+        return VideoPredictResponse(
+            total_frames_analyzed=frames_analyzed,
+            waste_detected_count=len([d for d in all_detections if d.get("is_waste")]),
+            primary_waste_type=primary,
+            detections=all_detections[:10],
+            summary=summary,
+            best_detection=best_waste_det
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in predict_video: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video analysis failed: {str(e)}")
+

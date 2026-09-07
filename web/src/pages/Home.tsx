@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
-import { Camera as CameraIcon, AlertCircle, BarChart3, MapPin, RotateCcw, CheckCircle } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Camera as CameraIcon, AlertCircle, BarChart3, MapPin, RotateCcw, CheckCircle, RefreshCw, Film, Camera } from "lucide-react";
 import api from "../api";
 import { cn } from "../lib/utils";
 import CameraScanner, { type Detection } from "../components/CameraScanner";
+import VideoScanner from "../components/VideoScanner";
 import { useSettings } from "../context/SettingsContext";
 
 interface RealtimePredictResponse {
@@ -20,10 +21,14 @@ const Home = () => {
   useEffect(() => {
     useSettingsRef.current = { colors, binLabels };
   }, [colors, binLabels]);
+
+  // Mode Selection State
+  const [scannerMode, setScannerMode] = useState<'camera' | 'video'>('camera');
   
-  // API State
+  // API & Connection State
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [isCheckingBackend, setIsCheckingBackend] = useState(true);
   const [flash, setFlash] = useState(false);
   
   // Bounding boxes and Best Result
@@ -36,6 +41,46 @@ const Home = () => {
   
   // Refs
   const isRequestingRef = useRef(false);
+
+  // ── HEALTH CHECK FUNCTION ──────────────────────────────────────────────
+  const checkBackendHealth = useCallback(async () => {
+    setIsCheckingBackend(true);
+    try {
+      const response = await api.get('/health', { timeout: 4000 });
+      if (response.data && (response.data.status === 'ok' || response.data.status === 'degraded')) {
+        setConnected(true);
+        setError(null);
+      } else {
+        setConnected(true);
+      }
+    } catch (e) {
+      try {
+        // Fallback root check
+        const rootResponse = await api.get('/', { timeout: 3000 });
+        if (rootResponse.data && rootResponse.data.status === 'online') {
+          setConnected(true);
+          setError(null);
+        } else {
+          setConnected(false);
+        }
+      } catch (rootErr) {
+        setConnected(false);
+      }
+    } finally {
+      setIsCheckingBackend(false);
+    }
+  }, []);
+
+  // Check health on mount and set auto-check interval if offline
+  useEffect(() => {
+    checkBackendHealth();
+
+    const timer = setInterval(() => {
+      checkBackendHealth();
+    }, 12000);
+
+    return () => clearInterval(timer);
+  }, [checkBackendHealth]);
 
   // Unified confidence rules (10% threshold)
   const CLASS_RULES: Record<string, { frames: number; conf: number }> = {
@@ -70,7 +115,7 @@ const Home = () => {
     return null;
   };
 
-  // 1. Brightness check helper
+  // Brightness check helper
   const computeBrightness = (imgBase64: string): Promise<number> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -94,15 +139,14 @@ const Home = () => {
     });
   };
 
-  // 2. Real-time frame handler
+  // Real-time frame handler
   const handleFrame = async (base64: string) => {
-    console.log("HANDLE FRAME CALLED");
     if (isFrozen || isRequestingRef.current) return;
 
     isRequestingRef.current = true;
     try {
       const brightness = await computeBrightness(base64);
-      if (brightness < 40) {
+      if (brightness < 30) {
         setError("⚠️ Lighting too dark. Please move to a brighter area.");
         isRequestingRef.current = false;
         return;
@@ -117,7 +161,7 @@ const Home = () => {
             "X-Color-Metal":   colors.Metal   || "#eab308",
             "X-Color-Paper":   colors.Paper   || "#f97316",
           },
-          timeout: 45000 // High timeout for potential lazy loading on first request
+          timeout: 15000
         }
       );
       const data = response.data;
@@ -131,7 +175,7 @@ const Home = () => {
 
       setDetections(data.detections);
 
-      // Universal Tracking
+      // Tracking
       const nonHuman = data.detections
         .map(d => ({ ...d, raw: (d.raw_label || d.label || "").toLowerCase().trim() }))
         .filter(d => (d as any).interaction_type !== 'human' && d.confidence >= 0.10)
@@ -188,43 +232,32 @@ const Home = () => {
       }
 
     } catch (err) {
-      console.error(err);
-      setConnected(false);
-      setError("⚠️ Connection lost. Retrying backend...");
+      console.error("Frame prediction error:", err);
+      // Don't flip connected state immediately on single dropped frame
     } finally {
       isRequestingRef.current = false;
     }
   };
 
   const handleCapture = async (base64: string) => {
-    console.log("HANDLE CAPTURE CALLED");
     if (isCapturing) return;
     setIsCapturing(true);
     setFlash(true);
     setTimeout(() => setFlash(false), 300);
 
     try {
-      // Convert base64 to blob correctly
-      const base64Data = base64.includes(",")
-        ? base64.split(",")[1]
-        : base64;
-
+      const base64Data = base64.includes(",") ? base64.split(",")[1] : base64;
       const byteCharacters = atob(base64Data);
-      const byteNumbers    = new Array(byteCharacters.length);
+      const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob      = new Blob([byteArray], { type: "image/jpeg" });
-      const file      = new File([blob], "capture.jpg", {
-        type: "image/jpeg"
-      });
+      const blob = new Blob([byteArray], { type: "image/jpeg" });
+      const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
 
-      // Verify file was created correctly
-      console.log("Capture file size:", file.size, "bytes");
       if (file.size < 1000) {
-        console.error("Capture file too small — bad screenshot");
-        setError("Capture failed — try again.");
+        setError("Capture failed — invalid image buffer.");
         return;
       }
 
@@ -249,7 +282,6 @@ const Home = () => {
       );
 
       const data = response.data;
-      console.log("Upload response:", data);
       setConnected(true);
       setError(null);
 
@@ -258,21 +290,17 @@ const Home = () => {
       }
 
       setDetections(data.detections || []);
-      const waste = data.detections?.find(
-        (d: Detection) => d.is_waste
-      );
+      const waste = data.detections?.find((d: Detection) => d.is_waste);
 
       if (waste) {
         setBestResult(waste);
-        console.log("Waste saved:", waste.label);
       } else {
         const first = data.detections?.[0];
         if (first) setBestResult(first);
       }
 
     } catch (err: any) {
-      console.error("Capture error:", err?.response?.data || err);
-      setConnected(false);
+      console.error("Capture error:", err);
       setError("Capture failed. Check backend is running.");
     } finally {
       setIsCapturing(false);
@@ -293,38 +321,103 @@ const Home = () => {
         <div className="fixed inset-0 bg-white z-[100] animate-in fade-out duration-300 pointer-events-none" />
       )}
 
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">Identify Waste</h1>
-        <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full uppercase tracking-tighter border border-indigo-100 shadow-sm">
-           <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-           Live Robot Analyst
+      {/* HEADER WITH STATUS BADGE & MODE TABS */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Identify Waste</h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">
+            Real-time AI waste sorting for paper, plastic, metal & glass
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Connection Status Badge */}
+          {connected ? (
+            <div className="flex items-center gap-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Backend Online</span>
+            </div>
+          ) : (
+            <button
+              onClick={checkBackendHealth}
+              disabled={isCheckingBackend}
+              className="flex items-center gap-2 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3.5 py-1.5 rounded-full transition-all shadow-sm active:scale-95"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-amber-600", isCheckingBackend && "animate-spin")} />
+              <span>{isCheckingBackend ? 'Connecting...' : 'Backend Offline (Retry)'}</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-3.5 py-1.5 rounded-full uppercase tracking-tighter border border-indigo-100 shadow-sm">
+             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+             SortIQ Analyst
+          </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* LEFT COLUMN: Camera Source */}
-        <div className="relative group">
-          <CameraScanner 
-            onFrame={handleFrame}
-            onCapture={handleCapture}
-            detections={detections}
-            frozen={isFrozen}
-            isCapturing={isCapturing}
-            trackedObjects={trackedRef.current.map(t => ({ 
-              ...t, 
-              stable: t.count >= (CLASS_RULES[t.label] || CLASS_RULES.default).frames 
-            }))}
-          />
+      {/* MODE SELECTION TABS */}
+      <div className="flex items-center gap-2 mb-6 bg-slate-200/70 p-1.5 rounded-2xl w-fit border border-slate-300/50">
+        <button
+          onClick={() => setScannerMode('camera')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all",
+            scannerMode === 'camera'
+              ? "bg-white text-slate-900 shadow-sm shadow-slate-200"
+              : "text-slate-600 hover:text-slate-900"
+          )}
+        >
+          <Camera className="w-4 h-4 text-indigo-500" />
+          <span>Live Camera</span>
+        </button>
 
-          <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-             <span className="text-[10px] font-black text-white uppercase tracking-widest">Tap shutter to save</span>
-          </div>
+        <button
+          onClick={() => setScannerMode('video')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all",
+            scannerMode === 'video'
+              ? "bg-white text-slate-900 shadow-sm shadow-slate-200"
+              : "text-slate-600 hover:text-slate-900"
+          )}
+        >
+          <Film className="w-4 h-4 text-indigo-500" />
+          <span>Video & Material Testing</span>
+          <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-extrabold">
+            Paper, Plastic, Metal, Glass
+          </span>
+        </button>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* LEFT COLUMN: Camera Scanner OR Video Scanner */}
+        <div className="relative group flex flex-col gap-4">
+          {scannerMode === 'camera' ? (
+            <CameraScanner 
+              onFrame={handleFrame}
+              onCapture={handleCapture}
+              detections={detections}
+              frozen={isFrozen}
+              isCapturing={isCapturing}
+              trackedObjects={trackedRef.current.map(t => ({ 
+                ...t, 
+                stable: t.count >= (CLASS_RULES[t.label] || CLASS_RULES.default).frames 
+              }))}
+            />
+          ) : (
+            <VideoScanner
+              onFrame={handleFrame}
+              onCapture={handleCapture}
+              detections={detections}
+              isCapturing={isCapturing}
+            />
+          )}
 
           {/* Robot Chat Bubble */}
           <div className={cn(
-            "mt-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-indigo-100 flex gap-4 items-start transition-all duration-500 transform",
-            bestResult?.message ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"
+            "bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-indigo-100 flex gap-4 items-start transition-all duration-500 transform",
+            bestResult?.message ? "translate-y-0 opacity-100" : "translate-y-2 opacity-90"
           )}>
             <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 text-2xl shadow-inner relative overflow-hidden border border-indigo-200">
               <div className="absolute inset-0 bg-indigo-500/10 animate-pulse rounded-full" />
@@ -333,7 +426,7 @@ const Home = () => {
             <div className="flex-1 min-w-0 pt-0.5">
                 <h4 className="text-[10px] font-black text-indigo-900 mb-1 uppercase tracking-widest opacity-60">SortIQ Robot</h4>
                 <p className="text-sm text-slate-700 leading-relaxed font-medium capitalize">
-                    {bestResult?.message || "Hold the object steady..."}
+                    {bestResult?.message || "Select a video test feed or point live camera at waste items..."}
                 </p>
             </div>
           </div>
@@ -352,38 +445,56 @@ const Home = () => {
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 opacity-50">
                    <CameraIcon className="w-8 h-8 text-slate-400" />
                 </div>
-                <p className="text-center font-bold text-slate-500/80">Pointing camera at waste...</p>
-                <p className="text-[10px] uppercase tracking-widest mt-2 opacity-50">Detection sensitive to 10%</p>
+                <p className="text-center font-bold text-slate-500/80">
+                  {scannerMode === 'camera' ? 'Pointing camera at waste...' : 'Analyzing video stream...'}
+                </p>
+                <p className="text-[10px] uppercase tracking-widest mt-2 opacity-50">High-Precision AI Classifier</p>
               </div>
             )}
 
-            {error && !bestResult && (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                {!connected ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center max-w-sm">
-                    <p className="text-amber-800 font-bold text-sm">
-                      🖥️ Backend is offline
-                    </p>
-                    <p className="text-amber-700 text-xs mt-1">
-                      This is a portfolio demo. To run locally:
-                      clone the repo and start the backend.
-                    </p>
+            {!connected && (
+              <div className="p-6">
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3 font-bold text-lg">
+                    🖥️
+                  </div>
+                  <h3 className="text-amber-900 font-bold text-base mb-1">
+                    Backend is offline
+                  </h3>
+                  <p className="text-amber-800 text-xs leading-relaxed max-w-xs mx-auto mb-4">
+                    This is a portfolio demo. To run locally: clone the repo and start the backend uvicorn server.
+                  </p>
+                  
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={checkBackendHealth}
+                      disabled={isCheckingBackend}
+                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <RefreshCw className={cn("w-4 h-4", isCheckingBackend && "animate-spin")} />
+                      <span>{isCheckingBackend ? 'Checking Server...' : 'Re-check Backend Connection'}</span>
+                    </button>
+
                     <a 
                       href="https://github.com/mounibwassim/SortIQ"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-amber-600 underline mt-1 inline-block font-semibold"
+                      className="text-xs text-amber-700 hover:text-amber-900 underline font-semibold py-1 block"
                     >
                       📂 View on GitHub →
                     </a>
                   </div>
-                ) : (
-                  <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 flex flex-col items-center text-center max-w-sm">
-                    <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                    <h3 className="font-bold text-red-900 mb-1">Notice</h3>
-                    <p className="text-xs text-red-700/80 leading-relaxed">{error}</p>
-                  </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            {error && connected && !bestResult && (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 flex flex-col items-center text-center max-w-sm">
+                  <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+                  <h3 className="font-bold text-red-900 mb-1">Notice</h3>
+                  <p className="text-xs text-red-700/80 leading-relaxed">{error}</p>
+                </div>
               </div>
             )}
 

@@ -28,6 +28,14 @@ class RealtimePredictResponse(BaseModel):
     saved_id: Optional[str] = None
     auto_saved: Optional[bool] = False
 
+class VideoPredictResponse(BaseModel):
+    total_frames_analyzed: int
+    waste_detected_count: int
+    primary_waste_type: Optional[str] = None
+    detections: List[DetectionModel]
+    summary: str
+    best_detection: Optional[DetectionModel] = None
+
 class ErrorResponse(BaseModel):
     detail: str
 
