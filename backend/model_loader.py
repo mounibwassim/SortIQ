@@ -364,7 +364,7 @@ class SortIQModel:
                 return None
 
         final_results = []
-        results = y.predict(img_pil, conf=0.20, verbose=False)
+        results = y.predict(img_pil, conf=0.12, verbose=False)
 
         for res in results:
             if len(res.boxes) == 0:
@@ -377,12 +377,14 @@ class SortIQModel:
                 if yolo_label in HARD_BLOCK:
                     continue
                 x1, y1, x2, y2 = box
+                box_w = x2 - x1
+                box_h = y2 - y1
+                if box_w * box_h < 300: # Filter out tiny noise only
+                    continue
                 crop = img_rgb[max(0,y1):min(frame_h,y2), max(0,x1):min(frame_w,x2)]
                 if crop.size == 0:
                     continue
                 if is_face_or_skin(crop):
-                    continue
-                if is_background(box, frame_w, frame_h, crop):
                     continue
                 det = run_mobilenet(crop, box, yolo_label)
                 if det:

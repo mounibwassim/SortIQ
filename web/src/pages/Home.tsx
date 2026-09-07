@@ -183,9 +183,9 @@ const Home = () => {
 
       // Tracking
       const nonHuman = data.detections
-        .map(d => ({ ...d, raw: (d.raw_label || d.label || "").toLowerCase().trim() }))
-        .filter(d => (d as any).interaction_type !== 'human' && d.confidence >= 0.10)
-        .sort((a, b) => b.confidence - a.confidence);
+        .map((d: Detection) => ({ ...d, raw: (d.raw_label || d.label || "").toLowerCase().trim() }))
+        .filter((d: Detection) => (d as any).interaction_type !== 'human' && d.confidence >= 0.10)
+        .sort((a: Detection, b: Detection) => b.confidence - a.confidence);
 
       frameRef.current += 1;
 
@@ -576,6 +576,31 @@ const Home = () => {
                 </div>
                 
                 <div className="p-8 flex-1 bg-slate-50/30">
+                  {/* Multi-Item Detection Summary for Conveyor Machine Videos */}
+                  {detections.length > 1 && (
+                    <div className="mb-6 bg-slate-100/80 p-4 rounded-2xl border border-slate-200">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center justify-between">
+                        <span>Items On Screen ({detections.length})</span>
+                        <span className="text-indigo-600 font-extrabold">Active Machine Vision</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {detections.map((d, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 shadow-sm"
+                          >
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: d.color_hex || d.box_color_hex || '#22c55e' }}
+                            />
+                            <span className="capitalize">{d.label}</span>
+                            <span className="text-slate-400 text-[10px]">({Math.round(d.confidence * 100)}%)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {bestResult.tip && (
                     <>
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Robot Tip</h4>

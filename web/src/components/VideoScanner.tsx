@@ -146,9 +146,8 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
 
     detections.forEach((det) => {
       const [x1, y1, x2, y2] = det.box;
-      const cx = x1 + (x2 - x1) / 2;
-      const cy = y1 + (y2 - y1) / 2;
-      const radius = Math.max(x2 - x1, y2 - y1) / 2;
+      const bw = Math.max(20, x2 - x1);
+      const bh = Math.max(20, y2 - y1);
 
       const formattedLabel = det.label
         ? det.label.charAt(0).toUpperCase() + det.label.slice(1)
@@ -158,36 +157,53 @@ const VideoScanner: React.FC<VideoScannerProps> = ({
           ? colors[formattedLabel as keyof typeof colors]
           : det.color_hex || det.box_color_hex || '#22c55e';
 
-      // Ring overlay
+      // 1. Translucent Tint Inside Square
       ctx.save();
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = color;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3.5;
-      if (det.is_waste) ctx.setLineDash([8, 4]);
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.15;
+      ctx.fillRect(x1, y1, bw, bh);
       ctx.restore();
 
-      // Label Tag
-      const labelText = `${det.label} ${Math.round(det.confidence * 100)}%`;
+      // 2. Outer Bounding Square
+      ctx.save();
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x1, y1, bw, bh);
+
+      // 3. Reticle Corners
+      const cLen = Math.min(14, bw / 4, bh / 4);
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 0;
+      // Top-Left
+      ctx.beginPath(); ctx.moveTo(x1, y1 + cLen); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cLen, y1); ctx.stroke();
+      // Top-Right
+      ctx.beginPath(); ctx.moveTo(x1 + bw - cLen, y1); ctx.lineTo(x1 + bw, y1); ctx.lineTo(x1 + bw, y1 + cLen); ctx.stroke();
+      // Bottom-Left
+      ctx.beginPath(); ctx.moveTo(x1, y1 + bh - cLen); ctx.lineTo(x1, y1 + bh); ctx.lineTo(x1 + cLen, y1 + bh); ctx.stroke();
+      // Bottom-Right
+      ctx.beginPath(); ctx.moveTo(x1 + bw - cLen, y1 + bh); ctx.lineTo(x1 + bw, y1 + bh); ctx.lineTo(x1 + bw, y1 + bh - cLen); ctx.stroke();
+      ctx.restore();
+
+      // 4. Label Tag
+      const labelText = `${det.label.toUpperCase()} ${Math.round(det.confidence * 100)}%`;
       ctx.font = 'bold 12px Inter, sans-serif';
       const metrics = ctx.measureText(labelText);
-      const tagW = metrics.width + 20;
-      const tagH = 24;
-      const tagX = cx - tagW / 2;
-      const tagY = cy - radius - 30;
+      const tagW = metrics.width + 16;
+      const tagH = 22;
+      const tagX = x1;
+      const tagY = Math.max(4, y1 - tagH - 4);
 
       ctx.fillStyle = color;
       ctx.beginPath();
-      (ctx as any).roundRect?.(tagX, tagY, tagW, tagH, 8) || ctx.rect(tagX, tagY, tagW, tagH);
+      (ctx as any).roundRect?.(tagX, tagY, tagW, tagH, 6) || ctx.rect(tagX, tagY, tagW, tagH);
       ctx.fill();
 
       ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(labelText, cx, tagY + tagH / 2);
+      ctx.fillText(labelText, tagX + 8, tagY + tagH / 2);
     });
   }, [detections, colors]);
 

@@ -1,13 +1,18 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001";
+const getInitialBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return "http://127.0.0.1:8001";
+};
+
+const BASE_URL = getInitialBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   try {
     const stored = localStorage.getItem("sortiq_settings_v2");
     if (stored) {

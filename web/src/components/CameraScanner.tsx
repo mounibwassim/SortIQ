@@ -67,7 +67,7 @@ const CameraScanner: React.FC<CameraScannerProps> = ({
   }, [isActive, frozen, onFrame]);
   // ── END LIVE PREVIEW LOOP ──────────────────────────────────────────
 
-  // ── DRAW CIRCLES ON CANVAS ────────────────────────────────────────
+  // ── DRAW TECH BOUNDING SQUARES ON CANVAS ────────────────────────────
   useEffect(() => {
     const video  = webcamRef.current?.video;
     const canvas = canvasRef.current;
@@ -81,9 +81,8 @@ const CameraScanner: React.FC<CameraScannerProps> = ({
 
     detections.forEach(det => {
       const [x1, y1, x2, y2] = det.box;
-      const cx     = x1 + (x2 - x1) / 2;
-      const cy     = y1 + (y2 - y1) / 2;
-      const radius = Math.max(x2 - x1, y2 - y1) / 2;
+      const bw = Math.max(20, x2 - x1);
+      const bh = Math.max(20, y2 - y1);
 
       const formattedLabel = det.label
         ? det.label.charAt(0).toUpperCase() + det.label.slice(1)
@@ -93,64 +92,53 @@ const CameraScanner: React.FC<CameraScannerProps> = ({
           ? colors[formattedLabel as keyof typeof colors]
           : det.color_hex || det.box_color_hex || '#22c55e';
 
-      // Waste circle — dotted glow
-      if (det.is_waste) {
-        ctx.save();
-        ctx.shadowBlur  = 15;
-        ctx.shadowColor = color;
-        ctx.strokeStyle = color;
-        ctx.setLineDash([8, 4]);
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      } else {
-        // Non-waste circle — solid
-        ctx.strokeStyle = color;
-        ctx.lineWidth   = 2;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      // 1. Translucent Tint Inside Square
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.12;
+      ctx.fillRect(x1, y1, bw, bh);
+      ctx.restore();
 
-      // Pulse fill for stable waste items (visual only — no save triggered)
-      const match = (trackedObjects || []).find(
-        t => t.label.toLowerCase() === (det.raw_label || '').toLowerCase()
-      );
-      if (match?.stable && det.is_waste) {
-        const pulse = 1 + 0.1 * Math.sin(Date.now() / 200);
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.fillStyle   = color;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      // 2. Bounding Square Box
+      ctx.save();
+      ctx.shadowBlur  = 12;
+      ctx.shadowColor = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2.5;
+      ctx.strokeRect(x1, y1, bw, bh);
 
-      // Label tag above circle
-      ctx.setLineDash([]);
-      const labelText = `${det.label} ${Math.round(det.confidence * 100)}%`;
-      ctx.font = 'bold 13px Inter, sans-serif';
+      // 3. Corner Reticle Brackets (Machine Vision Aesthetic)
+      const cLen = Math.min(14, bw / 4, bh / 4);
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 0;
+      // Top-Left
+      ctx.beginPath(); ctx.moveTo(x1, y1 + cLen); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cLen, y1); ctx.stroke();
+      // Top-Right
+      ctx.beginPath(); ctx.moveTo(x1 + bw - cLen, y1); ctx.lineTo(x1 + bw, y1); ctx.lineTo(x1 + bw, y1 + cLen); ctx.stroke();
+      // Bottom-Left
+      ctx.beginPath(); ctx.moveTo(x1, y1 + bh - cLen); ctx.lineTo(x1, y1 + bh); ctx.lineTo(x1 + cLen, y1 + bh); ctx.stroke();
+      // Bottom-Right
+      ctx.beginPath(); ctx.moveTo(x1 + bw - cLen, y1 + bh); ctx.lineTo(x1 + bw, y1 + bh); ctx.lineTo(x1 + bw, y1 + bh - cLen); ctx.stroke();
+      ctx.restore();
+
+      // 4. Label Tag Badge Above Square
+      const labelText = `${det.label.toUpperCase()} ${Math.round(det.confidence * 100)}%`;
+      ctx.font = 'bold 12px Inter, sans-serif';
       const metrics = ctx.measureText(labelText);
-      const tagW = metrics.width + 20;
-      const tagH = 24;
-      const tagX = cx - tagW / 2;
-      const tagY = cy - radius - 34;
+      const tagW = metrics.width + 16;
+      const tagH = 22;
+      const tagX = x1;
+      const tagY = Math.max(4, y1 - tagH - 4);
 
       ctx.fillStyle = color;
       ctx.beginPath();
-      (ctx as any).roundRect?.(tagX, tagY, tagW, tagH, 10) ||
-        ctx.rect(tagX, tagY, tagW, tagH);
+      (ctx as any).roundRect?.(tagX, tagY, tagW, tagH, 6) || ctx.rect(tagX, tagY, tagW, tagH);
       ctx.fill();
 
       ctx.fillStyle   = '#ffffff';
-      ctx.textAlign   = 'center';
+      ctx.textAlign   = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(labelText, cx, tagY + tagH / 2);
-      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(labelText, tagX + 8, tagY + tagH / 2);
     });
   }, [detections, isActive, frozen, trackedObjects, colors]);
   // ── END DRAW CIRCLES ──────────────────────────────────────────────
