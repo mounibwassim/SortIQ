@@ -277,7 +277,6 @@ const Home = () => {
         formData,
         {
           headers: {
-            "Content-Type":    "multipart/form-data",
             "X-Color-Glass":   colors?.Glass   || "#22c55e",
             "X-Color-Plastic": colors?.Plastic || "#3b82f6",
             "X-Color-Metal":   colors?.Metal   || "#eab308",
@@ -307,7 +306,8 @@ const Home = () => {
 
     } catch (err: any) {
       console.error("Capture error:", err);
-      setError("Capture failed. Check backend is running.");
+      const msg = err?.response?.data?.detail || err?.message || "Capture failed. Check backend is running.";
+      setError(`Capture failed: ${msg}`);
     } finally {
       setIsCapturing(false);
     }

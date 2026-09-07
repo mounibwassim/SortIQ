@@ -12,11 +12,17 @@ def setup_logger(name="sortiq_logger", log_file="sortiq.log", level=logging.INFO
 
     # Don't add handlers if they already exist
     if not logger.handlers:
-        # File handler for JSON logs
-        file_handler = logging.FileHandler(log_file)
+        # File handler for JSON logs with UTF-8 encoding
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
         
-        # Console handler for local viewing
-        console_handler = logging.StreamHandler()
+        # Console handler for local viewing with UTF-8 fallback
+        import sys
+        if hasattr(sys.stdout, 'reconfigure'):
+            try:
+                sys.stdout.reconfigure(encoding='utf-8')
+            except Exception:
+                pass
+        console_handler = logging.StreamHandler(sys.stdout)
         
         # Define JSON formatter
         formatter = jsonlogger.JsonFormatter(
